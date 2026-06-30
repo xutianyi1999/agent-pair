@@ -18,7 +18,7 @@ fn parse_pair(s: &str) -> Result<(u16, String), String> {
 #[command(version, about = "Label-based TCP tunnel agent")]
 struct Cli {
     /// Broker WebSocket address (host:port).
-    #[arg(short, long, default_value = "127.0.0.1:7799")]
+    #[arg(short, long)]
     server: String,
 
     /// Register a label and forward incoming yamux streams to a local port.
