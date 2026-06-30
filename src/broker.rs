@@ -86,7 +86,12 @@ impl Broker {
     pub async fn open_stream(&self, label: &str) -> Result<StreamHandle, Error> {
         let entry = self.table.lock().unwrap().get(label).cloned();
         match entry {
-            Some((mut ctrl, _)) => ctrl.open_stream().await.map_err(|e| Error::Protocol(e.to_string())),
+            Some((mut ctrl, _)) => {
+                let mut stream = ctrl.open_stream().await
+                    .map_err(|e| Error::Protocol(e.to_string()))?;
+                crate::protocol::write_frame(&mut stream, &StreamKind::Data { label: label.to_string() }).await?;
+                Ok(stream)
+            }
             None => Err(Error::Protocol(format!("label '{label}' not registered"))),
         }
     }
