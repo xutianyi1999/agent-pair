@@ -1,3 +1,5 @@
+[English](README.md)
+
 # agent-pair
 
 **基于 WebSocket + yamux 的标签式 TCP 隧道。** 通过一台中转服务器，让多台远程机器同时访问内网服务——无需公网 IP。

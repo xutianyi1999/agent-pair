@@ -1,3 +1,5 @@
+[中文](README.zh.md)
+
 # agent-pair
 
 **Label-based TCP tunnel over WebSocket + yamux.** Expose a local service through a relay so
