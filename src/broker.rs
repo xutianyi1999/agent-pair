@@ -82,6 +82,12 @@ impl Broker {
         agent_session(transport, self.table.clone()).await;
     }
 
+    /// Close all yamux sessions by clearing the label table.
+    /// In-flight agent_session loops see no more controls and exit.
+    pub fn shutdown(&self) {
+        self.table.lock().unwrap().clear();
+    }
+
     /// Open a yamux stream to a registered bind label.
     pub async fn open_stream(&self, label: &str) -> Result<StreamHandle, Error> {
         let entry = self.table.lock().unwrap().get(label).cloned();
