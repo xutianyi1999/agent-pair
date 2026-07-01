@@ -51,7 +51,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = format!("ws://{}", cli.server);
 
     loop {
-        let agent = agent_pair::AgentClient::connect(&addr).await?;
+        let agent = loop {
+            match agent_pair::AgentClient::connect(&addr).await {
+                Ok(a) => break a,
+                Err(e) => {
+                    tracing::warn!(error = %e, "connect failed, retry in 3s");
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+            }
+        };
         info!("connected");
 
         let mut hs = vec![];
@@ -75,8 +83,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         for h in hs {
-            if let Err(e) = h.await.unwrap() {
-                tracing::warn!(error = %e, "session ended");
+            match h.await {
+                Ok(Err(e)) => tracing::warn!(error = %e, "task ended"),
+                Ok(Ok(())) => {}
+                Err(e) => tracing::warn!(error = %e, "join error"),
             }
         }
 

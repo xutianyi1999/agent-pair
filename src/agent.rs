@@ -39,12 +39,13 @@ impl AgentClient {
 
         let reader = StreamReader::new(stream.filter_map(|item| async move {
             match item {
-                Ok(m) if !matches!(m, tokio_tungstenite::tungstenite::Message::Close(_)) => {
-                    Some(Ok::<_, std::io::Error>(m.into_data()))
+                Ok(m) => {
+                    if m.is_close() {
+                        return None;
+                    }
+                    Some(Ok(m.into_data()))
                 }
-                Ok(tokio_tungstenite::tungstenite::Message::Close(_)) => None,
                 Err(e) => Some(Err(std::io::Error::other(e.to_string()))),
-                _ => Some(Err(std::io::Error::other("unexpected websocket frame"))),
             }
         }).boxed());
         let writer = SinkWriter::new(CopyToBytes::new(
@@ -68,9 +69,11 @@ impl AgentClient {
         let bl = bind_labels.clone();
         let sd = shutdown.clone();
         tokio::spawn(async move {
+            let mut err_count = 0u32;
             loop {
                 match session.next().await {
                     Some(Ok(mut ys)) => {
+                        err_count = 0;
                         let bl = bl.clone();
                         let sd = sd.clone();
                         tokio::spawn(async move {
@@ -92,7 +95,13 @@ impl AgentClient {
                             }
                         });
                     }
-                    Some(Err(_)) => continue,
+                    Some(Err(_)) => {
+                        err_count += 1;
+                        if err_count >= 10 {
+                            break;
+                        }
+                        continue;
+                    }
                     None => break,
                 }
             }
@@ -123,10 +132,14 @@ impl AgentClient {
             }
         }
 
-        let mut reg = control
-            .open_stream()
-            .await
-            .map_err(|e| Error::Protocol(e.to_string()))?;
+        let mut reg = match control.open_stream().await {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("bind: open_stream failed for {label}: {e}");
+                self.bind_labels.write().unwrap().remove(label);
+                return Err(Error::Protocol(e.to_string()));
+            }
+        };
         if let Err(e) = protocol::write_frame(
             &mut reg,
             &StreamKind::Register {

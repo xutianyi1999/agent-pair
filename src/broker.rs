@@ -59,10 +59,13 @@ impl Broker {
             let (sink, stream) = ws.split();
             let reader = StreamReader::new(stream.filter_map(|msg| async move {
                 match msg {
-                    Ok(m) if !matches!(m, Message::Close(_)) => Some(Ok::<_, std::io::Error>(m.into_data())),
-                    Ok(Message::Close(_)) => None,
+                    Ok(m) => {
+                        if m.is_close() {
+                            return None;
+                        }
+                        Some(Ok(m.into_data()))
+                    }
                     Err(e) => Some(Err(std::io::Error::other(e.to_string()))),
-                    _ => unreachable!(),
                 }
             }).boxed());
             let writer = SinkWriter::new(CopyToBytes::new(
@@ -132,7 +135,11 @@ async fn agent_session(transport: impl AsyncRead + AsyncWrite + Unpin + Send + '
         session_id,
     };
 
-    while let Some(Ok(mut ys)) = session.next().await {
+    let mut err_count = 0u32;
+    loop {
+        match session.next().await {
+            Some(Ok(mut ys)) => {
+                err_count = 0;
         let table = table.clone();
         let my_control = my_control.clone();
         tokio::spawn(async move {
@@ -180,5 +187,15 @@ async fn agent_session(transport: impl AsyncRead + AsyncWrite + Unpin + Send + '
                 }
             }
         });
+            }
+            Some(Err(_)) => {
+                err_count += 1;
+                if err_count >= 10 {
+                    break;
+                }
+                continue;
+            }
+            None => break,
+        }
     }
 }
