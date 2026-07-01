@@ -26,11 +26,12 @@ pub struct AgentClient {
 
 impl AgentClient {
     pub async fn connect(addr: &str) -> Result<Self, Error> {
-        let url = if addr.starts_with("ws://") || addr.starts_with("wss://") {
-            addr.to_string()
-        } else {
-            format!("ws://{addr}")
-        };
+        if !addr.starts_with("ws://") && !addr.starts_with("wss://") {
+            return Err(Error::Protocol(
+                "address must start with ws:// or wss://".into(),
+            ));
+        }
+        let url = addr.to_string();
 
         let (ws, _) = connect_async(&url)
             .await

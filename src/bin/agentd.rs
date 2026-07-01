@@ -17,7 +17,7 @@ fn parse_pair(s: &str) -> Result<(u16, String), String> {
 #[derive(Parser)]
 #[command(version, about = "Label-based TCP tunnel agent")]
 struct Cli {
-    /// Broker WebSocket address (host:port).
+    /// Broker WebSocket address (ws://host:port or wss://host:port).
     #[arg(short, long)]
     server: String,
 
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     }
 
-    let addr = format!("ws://{}", cli.server);
+    let addr = cli.server;
 
     loop {
         let agent = loop {

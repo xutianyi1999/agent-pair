@@ -25,7 +25,7 @@
 //! ```rust,no_run
 //! use agent_pair::AgentClient;
 //! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! AgentClient::connect("relay:7799")
+//! AgentClient::connect("ws://relay:7799")
 //!     .await?
 //!     .bind(5037, "project_abc")
 //!     .await?;
@@ -37,7 +37,7 @@
 //! ```rust,no_run
 //! use agent_pair::AgentClient;
 //! # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-//! AgentClient::connect("relay:7799")
+//! AgentClient::connect("ws://relay:7799")
 //!     .await?
 //!     .forward(15037, "project_abc")
 //!     .await?;
