@@ -1,3 +1,5 @@
+pub use validate::validate_label;
+
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_yamux::StreamHandle;
@@ -7,6 +9,9 @@ use crate::Error;
 /// Maximum allowed postcard frame payload in bytes.
 /// StreamKind (enum + String) is well under this.
 pub const MAX_FRAME_SIZE: usize = 4096;
+
+/// Maximum label length in bytes.
+pub const MAX_LABEL_LENGTH: usize = 4096;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum StreamKind {
@@ -36,4 +41,24 @@ pub async fn write_frame(ys: &mut StreamHandle, kind: &StreamKind) -> Result<(),
     ys.write_all(&flen).await?;
     ys.write_all(&enc).await?;
     Ok(())
+}
+
+mod validate {
+    use crate::protocol::MAX_LABEL_LENGTH;
+    use crate::Error;
+
+    pub fn validate_label(label: &str) -> Result<(), Error> {
+        if label.is_empty() {
+            return Err(Error::Protocol("label cannot be empty".into()));
+        }
+        if label.len() > MAX_LABEL_LENGTH {
+            return Err(Error::Protocol(format!(
+                "label too long (max {MAX_LABEL_LENGTH} bytes)"
+            )));
+        }
+        if label.contains('\n') || label.contains('\r') {
+            return Err(Error::Protocol("label contains invalid characters".into()));
+        }
+        Ok(())
+    }
 }

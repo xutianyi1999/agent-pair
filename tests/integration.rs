@@ -72,22 +72,20 @@ async fn setup_tunnel() -> (std::net::SocketAddr, u16) {
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .bind(echo, "srv")
-            .await
-            .unwrap_err();
+            .await;
     });
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .forward(local, "srv")
-            .await
-            .unwrap_err();
+            .await;
     });
 
     wait_for_port(local).await;
@@ -118,19 +116,19 @@ async fn multi_label() {
     let a1 = ws_addr(b);
     let a2 = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&a1).await.unwrap().bind(e1, "web").await.unwrap_err();
+        let _ = AgentClient::connect(&a1).await.unwrap().bind(e1, "web").await;
     });
     tokio::spawn(async move {
-        AgentClient::connect(&a2).await.unwrap().bind(e2, "ssh").await.unwrap_err();
+        let _ = AgentClient::connect(&a2).await.unwrap().bind(e2, "ssh").await;
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
     let a1 = ws_addr(b);
     let a2 = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&a1).await.unwrap().forward(f1, "web").await.unwrap_err();
+        let _ = AgentClient::connect(&a1).await.unwrap().forward(f1, "web").await;
     });
     tokio::spawn(async move {
-        AgentClient::connect(&a2).await.unwrap().forward(f2, "ssh").await.unwrap_err();
+        let _ = AgentClient::connect(&a2).await.unwrap().forward(f2, "ssh").await;
     });
     wait_for_port(f1).await;
     wait_for_port(f2).await;
@@ -152,23 +150,21 @@ async fn forward_cancel_and_restart() {
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .bind(echo, "web")
-            .await
-            .unwrap_err();
+            .await;
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     let addr = ws_addr(b);
     let h = tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .forward(local, "web")
-            .await
-            .unwrap_err();
+            .await;
     });
     wait_for_port(local).await;
 
@@ -182,12 +178,11 @@ async fn forward_cancel_and_restart() {
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .forward(local, "web")
-            .await
-            .unwrap_err();
+            .await;
     });
     wait_for_port(local).await;
     let mut c = TcpStream::connect(format!("127.0.0.1:{local}")).await.unwrap();
@@ -237,32 +232,29 @@ async fn multiple_forwards_same_label() {
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .bind(echo, "srv")
-            .await
-            .unwrap_err();
+            .await;
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     let a1 = ws_addr(b);
     let a2 = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&a1)
+        let _ = AgentClient::connect(&a1)
             .await
             .unwrap()
             .forward(f1, "srv")
-            .await
-            .unwrap_err();
+            .await;
     });
     tokio::spawn(async move {
-        AgentClient::connect(&a2)
+        let _ = AgentClient::connect(&a2)
             .await
             .unwrap()
             .forward(f2, "srv")
-            .await
-            .unwrap_err();
+            .await;
     });
     wait_for_port(f1).await;
     wait_for_port(f2).await;
@@ -315,12 +307,11 @@ async fn unknown_label() {
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .forward(local, "nope")
-            .await
-            .unwrap_err();
+            .await;
     });
     wait_for_port(local).await;
 
@@ -341,13 +332,13 @@ async fn bind_forward_shared_tcp() {
 
     tokio::spawn({
         let c = c.clone();
-        async move { c.bind(echo, "web").await.unwrap_err(); }
+        async move { let _ = c.bind(echo, "web").await; }
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     tokio::spawn({
         let c = c.clone();
-        async move { c.forward(local, "web").await.unwrap_err(); }
+        async move { let _ = c.forward(local, "web").await; }
     });
     wait_for_port(local).await;
 
@@ -364,7 +355,7 @@ async fn bind_duplicate_label() {
 
     let c = AgentClient::connect(&ws_addr(b)).await.unwrap();
     let c2 = c.clone();
-    tokio::spawn(async move { c2.bind(echo, "web").await.unwrap_err(); });
+    tokio::spawn(async move { let _ = c2.bind(echo, "web").await; });
     tokio::time::sleep(Duration::from_millis(300)).await;
     let r = c.bind(echo, "web").await;
     assert!(r.is_err(), "duplicate bind should fail");
@@ -380,14 +371,14 @@ async fn bind_reconnect() {
     let bind = AgentClient::connect(&ws_addr(b)).await.unwrap();
     let h = tokio::spawn({
         let c = bind.clone();
-        async move { c.bind(echo, "web").await.unwrap_err(); }
+        async move { let _ = c.bind(echo, "web").await; }
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
 
     let fwd = AgentClient::connect(&ws_addr(b)).await.unwrap();
     tokio::spawn({
         let c = fwd.clone();
-        async move { c.forward(local, "web").await.unwrap_err(); }
+        async move { let _ = c.forward(local, "web").await; }
     });
     wait_for_port(local).await;
 
@@ -402,7 +393,7 @@ async fn bind_reconnect() {
     let bind2 = AgentClient::connect(&ws_addr(b)).await.unwrap();
     tokio::spawn({
         let c = bind2.clone();
-        async move { c.bind(echo, "web").await.unwrap_err(); }
+        async move { let _ = c.bind(echo, "web").await; }
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
 
@@ -462,22 +453,20 @@ async fn bind_target_unreachable_to_ok() {
 
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .bind(closed, "web")
-            .await
-            .unwrap_err();
+            .await;
     });
     tokio::time::sleep(Duration::from_millis(300)).await;
     let addr = ws_addr(b);
     tokio::spawn(async move {
-        AgentClient::connect(&addr)
+        let _ = AgentClient::connect(&addr)
             .await
             .unwrap()
             .forward(local, "web")
-            .await
-            .unwrap_err();
+            .await;
     });
     wait_for_port(local).await;
 

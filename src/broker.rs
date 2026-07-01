@@ -109,10 +109,28 @@ impl Default for Broker {
     }
 }
 
+struct SessionCleanup {
+    table: LabelTable,
+    session_id: u64,
+}
+
+impl Drop for SessionCleanup {
+    fn drop(&mut self) {
+        self.table
+            .lock()
+            .unwrap()
+            .retain(|_, (_, sid)| *sid != self.session_id);
+    }
+}
+
 async fn agent_session(transport: impl AsyncRead + AsyncWrite + Unpin + Send + 'static, table: LabelTable) {
     let mut session = Session::new_server(transport, Config::default());
     let my_control = session.control();
     let session_id = SESSION_ID.fetch_add(1, Ordering::Relaxed);
+    let _cleanup = SessionCleanup {
+        table: table.clone(),
+        session_id,
+    };
 
     while let Some(Ok(mut ys)) = session.next().await {
         let table = table.clone();
@@ -129,7 +147,10 @@ async fn agent_session(transport: impl AsyncRead + AsyncWrite + Unpin + Send + '
             match kind {
                 StreamKind::Register { label } => {
                     info!(%label, "registered");
-                    table.lock().unwrap().insert(label, (my_control, session_id));
+                    let lab = label.clone();
+                    if let Some(old) = table.lock().unwrap().insert(label, (my_control, session_id)) {
+                        warn!("label '{lab}' overwritten (session {})", old.1);
+                    }
                 }
                 StreamKind::Data { label } => {
                     let entry = table.lock().unwrap().get(&label).cloned();
@@ -160,7 +181,4 @@ async fn agent_session(transport: impl AsyncRead + AsyncWrite + Unpin + Send + '
             }
         });
     }
-
-    let mut t = table.lock().unwrap();
-    t.retain(|_, (_, sid)| *sid != session_id);
 }
